@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HTMLプレイヤー</title>
+<style>
+  body { background:#17141a; color:#f0e9e2; font-family:sans-serif; margin:0; padding:20px 16px 40px; line-height:1.7; }
+  h1 { font-size:19px; text-align:center; letter-spacing:.15em; color:#e8c9a0; font-weight:normal; }
+  .box { background:#221d29; border:1px solid #4a3d52; border-radius:10px; padding:16px; margin:16px 0; }
+  .box h2 { font-size:15px; margin:0 0 8px; color:#d8c2e0; font-weight:normal; }
+  p, li { font-size:14px; }
+  button { background:#2c2531; color:#f0e9e2; border:1px solid #6b5570; border-radius:8px; padding:12px 18px; font-size:15px; cursor:pointer; margin:4px 4px 4px 0; }
+  button:hover { background:#453550; }
+  input[type=file] { font-size:14px; margin:8px 0; color:#f0e9e2; }
+  .note { color:#a99e92; font-size:12.5px; }
+  #frame { position:fixed; inset:0; width:100%; height:100%; border:0; background:#000; display:none; z-index:10; }
+  #closebar { position:fixed; top:8px; right:8px; z-index:11; display:none; }
+  #closebar button { opacity:.85; padding:8px 12px; font-size:13px; }
+  .result { font-size:15px; color:#ffd9a0; min-height:1.6em; }
+</style>
+</head>
+<body>
+<h1>HTMLプレイヤー</h1>
+<p>購入したHTMLファイル（index.html）を選ぶと、このページの中でそのまま遊べます。ファイルがサーバーに送られることはありません。端末の中だけで読み込んでいます。</p>
+
+<div class="box">
+  <h2>1. ファイルを選んで遊ぶ</h2>
+  <input type="file" id="file" accept=".html,.htm,text/html">
+  <div>
+    <button id="playBlob">方式Aで開く</button>
+    <button id="playSrcdoc">方式Bで開く</button>
+  </div>
+  <p class="note">方式A／Bは読み込み方法の違いです。まず「2. セーブのテスト」で残る方を確認してから、その方式で遊んでください。</p>
+</div>
+
+<div class="box">
+  <h2>2. セーブのテスト</h2>
+  <p>小さなテスト画面を開いて、数字を増やしてから閉じ、もう一度開いて数字が残っているかを見ます。残っていれば、その方式ではセーブが使えます。</p>
+  <div>
+    <button id="testBlob">方式Aでテスト</button>
+    <button id="testSrcdoc">方式Bでテスト</button>
+  </div>
+  <p class="result" id="result"></p>
+  <p class="note">※ iPhoneでは、サイトのデータを7日ほど使わないと自動で消されることがあります。消えた場合は、もう一度ファイルを選べば最初から遊べます。</p>
+</div>
+
+<iframe id="frame"></iframe>
+<div id="closebar"><button id="closeBtn">閉じる</button></div>
+
+<script>
+const TEST_HTML = '<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8">' +
+'<meta name="viewport" content="width=device-width, initial-scale=1">' +
+'<style>body{background:#17141a;color:#f0e9e2;font-family:sans-serif;text-align:center;padding:40px 16px}' +
+'button{background:#2c2531;color:#f0e9e2;border:1px solid #6b5570;border-radius:8px;padding:14px 22px;font-size:17px}' +
+'#n{font-size:44px;margin:24px}</style></head><body>' +
+'<p>セーブのテスト画面です</p><div id="n">-</div>' +
+'<button id="b">数字を増やす</button>' +
+'<p id="msg" style="font-size:13px;color:#a99e92"></p>' +
+'<script>' +
+'var KEY="html_player_storage_test";' +
+'function show(){var v=null;try{v=localStorage.getItem(KEY)}catch(e){}' +
+'document.getElementById("n").textContent=(v===null?"まだ記録なし":v);}' +
+'document.getElementById("b").onclick=function(){' +
+'var v=0;try{v=parseInt(localStorage.getItem(KEY)||"0",10)||0;localStorage.setItem(KEY,String(v+1));' +
+'document.getElementById("msg").textContent="保存しました。一度閉じて、開き直してください。";}' +
+'catch(e){document.getElementById("msg").textContent="保存できませんでした（この方式はセーブ不可）";}' +
+'show();};' +
+'show();' +
+'<\/script></body></html>';
+
+const frame = document.getElementById('frame');
+const closebar = document.getElementById('closebar');
+let blobUrl = null;
+
+function openFrame(mode, content, isBlob) {
+  if (blobUrl) { URL.revokeObjectURL(blobUrl); blobUrl = null; }
+  if (mode === 'blob') {
+    const blob = isBlob ? content : new Blob([content], {type: 'text/html'});
+    blobUrl = URL.createObjectURL(blob);
+    frame.removeAttribute('srcdoc');
+    frame.src = blobUrl;
+  } else {
+    frame.removeAttribute('src');
+    frame.srcdoc = content;
+  }
+  frame.style.display = 'block';
+  closebar.style.display = 'block';
+}
+function closeFrame() {
+  frame.style.display = 'none';
+  closebar.style.display = 'none';
+  frame.removeAttribute('src');
+  frame.removeAttribute('srcdoc');
+  if (blobUrl) { URL.revokeObjectURL(blobUrl); blobUrl = null; }
+}
+document.getElementById('closeBtn').onclick = closeFrame;
+
+let gameText = null, gameFile = null;
+document.getElementById('file').addEventListener('change', async (ev) => {
+  gameFile = ev.target.files[0] || null;
+  gameText = null;
+  if (gameFile) {
+    document.getElementById('result').textContent = '読み込み準備ができました：' + gameFile.name;
+  }
+});
+document.getElementById('playBlob').onclick = () => {
+  if (!gameFile) { alert('先にファイルを選んでください'); return; }
+  openFrame('blob', gameFile, true);
+};
+document.getElementById('playSrcdoc').onclick = async () => {
+  if (!gameFile) { alert('先にファイルを選んでください'); return; }
+  if (gameText === null) gameText = await gameFile.text();
+  openFrame('srcdoc', gameText, false);
+};
+document.getElementById('testBlob').onclick = () => openFrame('blob', TEST_HTML, false);
+document.getElementById('testSrcdoc').onclick = () => openFrame('srcdoc', TEST_HTML, false);
+</script>
+</body>
+</html>
