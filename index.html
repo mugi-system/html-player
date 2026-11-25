@@ -8,113 +8,127 @@
   body { background:#17141a; color:#f0e9e2; font-family:sans-serif; margin:0; padding:20px 16px 40px; line-height:1.7; }
   h1 { font-size:19px; text-align:center; letter-spacing:.15em; color:#e8c9a0; font-weight:normal; }
   .box { background:#221d29; border:1px solid #4a3d52; border-radius:10px; padding:16px; margin:16px 0; }
-  .box h2 { font-size:15px; margin:0 0 8px; color:#d8c2e0; font-weight:normal; }
   p, li { font-size:14px; }
-  button { background:#2c2531; color:#f0e9e2; border:1px solid #6b5570; border-radius:8px; padding:12px 18px; font-size:15px; cursor:pointer; margin:4px 4px 4px 0; }
+  button { background:#2c2531; color:#f0e9e2; border:1px solid #6b5570; border-radius:8px; padding:12px 22px; font-size:15px; cursor:pointer; margin:6px 0; }
   button:hover { background:#453550; }
   input[type=file] { font-size:14px; margin:8px 0; color:#f0e9e2; }
   .note { color:#a99e92; font-size:12.5px; }
+  #status { font-size:14px; color:#ffd9a0; min-height:1.6em; }
   #frame { position:fixed; inset:0; width:100%; height:100%; border:0; background:#000; display:none; z-index:10; }
   #closebar { position:fixed; top:8px; right:8px; z-index:11; display:none; }
   #closebar button { opacity:.85; padding:8px 12px; font-size:13px; }
-  .result { font-size:15px; color:#ffd9a0; min-height:1.6em; }
 </style>
 </head>
 <body>
 <h1>HTMLプレイヤー</h1>
-<p>購入したHTMLファイル（index.html）を選ぶと、このページの中でそのまま遊べます。ファイルがサーバーに送られることはありません。端末の中だけで読み込んでいます。</p>
+<p>購入した作品のファイルを選ぶと、このページの中でそのまま遊べます。ファイルがサーバーに送られることはありません。端末の中だけで読み込んでいます。</p>
 
 <div class="box">
-  <h2>1. ファイルを選んで遊ぶ</h2>
-  <input type="file" id="file" accept=".html,.htm,text/html">
-  <div>
-    <button id="playBlob">方式Aで開く</button>
-    <button id="playSrcdoc">方式Bで開く</button>
-  </div>
-  <p class="note">方式A／Bは読み込み方法の違いです。まず「2. セーブのテスト」で残る方を確認してから、その方式で遊んでください。</p>
+  <p>作品のファイル（<b>.zip</b> のまま、または解凍した <b>index.html</b>）を選んでください。</p>
+  <input type="file" id="file" accept=".html,.htm,.zip,text/html,application/zip">
+  <div><button id="play" disabled>開く</button></div>
+  <p id="status"></p>
 </div>
 
 <div class="box">
-  <h2>2. セーブのテスト</h2>
-  <p>小さなテスト画面を開いて、数字を増やしてから閉じ、もう一度開いて数字が残っているかを見ます。残っていれば、その方式ではセーブが使えます。</p>
-  <div>
-    <button id="testBlob">方式Aでテスト</button>
-    <button id="testSrcdoc">方式Bでテスト</button>
-  </div>
-  <p class="result" id="result"></p>
-  <p class="note">※ iPhoneでは、サイトのデータを7日ほど使わないと自動で消されることがあります。消えた場合は、もう一度ファイルを選べば最初から遊べます。</p>
+  <p class="note">・セーブデータは、このブラウザの中に保存されます。別のブラウザや端末とは共有されません。<br>
+  ・iPhoneでは、このサイトのデータを7日ほど使わないと自動で消されることがあります。消えてしまった場合は、もう一度ファイルを選べば最初から遊べます。<br>
+  ・うまく開けないときは、ZIPを解凍してから index.html を選んでみてください。</p>
 </div>
 
 <iframe id="frame"></iframe>
 <div id="closebar"><button id="closeBtn">閉じる</button></div>
 
 <script>
-const TEST_HTML = '<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8">' +
-'<meta name="viewport" content="width=device-width, initial-scale=1">' +
-'<style>body{background:#17141a;color:#f0e9e2;font-family:sans-serif;text-align:center;padding:40px 16px}' +
-'button{background:#2c2531;color:#f0e9e2;border:1px solid #6b5570;border-radius:8px;padding:14px 22px;font-size:17px}' +
-'#n{font-size:44px;margin:24px}</style></head><body>' +
-'<p>セーブのテスト画面です</p><div id="n">-</div>' +
-'<button id="b">数字を増やす</button>' +
-'<p id="msg" style="font-size:13px;color:#a99e92"></p>' +
-'<script>' +
-'var KEY="html_player_storage_test";' +
-'function show(){var v=null;try{v=localStorage.getItem(KEY)}catch(e){}' +
-'document.getElementById("n").textContent=(v===null?"まだ記録なし":v);}' +
-'document.getElementById("b").onclick=function(){' +
-'var v=0;try{v=parseInt(localStorage.getItem(KEY)||"0",10)||0;localStorage.setItem(KEY,String(v+1));' +
-'document.getElementById("msg").textContent="保存しました。一度閉じて、開き直してください。";}' +
-'catch(e){document.getElementById("msg").textContent="保存できませんでした（この方式はセーブ不可）";}' +
-'show();};' +
-'show();' +
-'<\/script></body></html>';
-
 const frame = document.getElementById('frame');
 const closebar = document.getElementById('closebar');
+const statusEl = document.getElementById('status');
+const playBtn = document.getElementById('play');
 let blobUrl = null;
+let picked = null;
 
-function openFrame(mode, content, isBlob) {
-  if (blobUrl) { URL.revokeObjectURL(blobUrl); blobUrl = null; }
-  if (mode === 'blob') {
-    const blob = isBlob ? content : new Blob([content], {type: 'text/html'});
+function setStatus(t) { statusEl.textContent = t; }
+
+async function inflate(data) {
+  const ds = new DecompressionStream('deflate-raw');
+  const stream = new Blob([data]).stream().pipeThrough(ds);
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+async function extractIndexHtml(file) {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  // End of Central Directory を後ろから探す
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= Math.max(0, buf.length - 22 - 65536); i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error('ZIPとして読めませんでした');
+  const count = dv.getUint16(eocd + 10, true);
+  let off = dv.getUint32(eocd + 16, true);
+  let target = null;
+  for (let n = 0; n < count; n++) {
+    if (dv.getUint32(off, true) !== 0x02014b50) break;
+    const method = dv.getUint16(off + 10, true);
+    const size = dv.getUint32(off + 20, true);
+    const nameLen = dv.getUint16(off + 28, true);
+    const extraLen = dv.getUint16(off + 30, true);
+    const commentLen = dv.getUint16(off + 32, true);
+    const localOff = dv.getUint32(off + 42, true);
+    const name = new TextDecoder().decode(buf.subarray(off + 46, off + 46 + nameLen));
+    if (name === 'index.html' || name.endsWith('/index.html') || /\.html?$/i.test(name)) {
+      target = { method, size, localOff };
+      if (name === 'index.html' || name.endsWith('/index.html')) break;
+    }
+    off += 46 + nameLen + extraLen + commentLen;
+  }
+  if (!target) throw new Error('ZIPの中にHTMLファイルが見つかりませんでした');
+  const lo = target.localOff;
+  if (dv.getUint32(lo, true) !== 0x04034b50) throw new Error('ZIPの形式が想定と違いました');
+  const lNameLen = dv.getUint16(lo + 26, true);
+  const lExtraLen = dv.getUint16(lo + 28, true);
+  const dataStart = lo + 30 + lNameLen + lExtraLen;
+  const raw = buf.subarray(dataStart, dataStart + target.size);
+  if (target.method === 0) return raw;
+  if (target.method === 8) return await inflate(raw);
+  throw new Error('対応していない圧縮形式でした');
+}
+
+document.getElementById('file').addEventListener('change', (ev) => {
+  picked = ev.target.files[0] || null;
+  playBtn.disabled = !picked;
+  setStatus(picked ? ('選択中：' + picked.name) : '');
+});
+
+playBtn.onclick = async () => {
+  if (!picked) return;
+  try {
+    setStatus('読み込み中…');
+    let blob;
+    if (/\.zip$/i.test(picked.name)) {
+      const bytes = await extractIndexHtml(picked);
+      blob = new Blob([bytes], { type: 'text/html' });
+    } else {
+      blob = picked;
+    }
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
     blobUrl = URL.createObjectURL(blob);
     frame.removeAttribute('srcdoc');
     frame.src = blobUrl;
-  } else {
-    frame.removeAttribute('src');
-    frame.srcdoc = content;
+    frame.style.display = 'block';
+    closebar.style.display = 'block';
+    setStatus('');
+  } catch (e) {
+    setStatus('開けませんでした：' + e.message + '（ZIPの場合は解凍して index.html を選んでみてください）');
   }
-  frame.style.display = 'block';
-  closebar.style.display = 'block';
-}
-function closeFrame() {
+};
+
+document.getElementById('closeBtn').onclick = () => {
   frame.style.display = 'none';
   closebar.style.display = 'none';
   frame.removeAttribute('src');
-  frame.removeAttribute('srcdoc');
   if (blobUrl) { URL.revokeObjectURL(blobUrl); blobUrl = null; }
-}
-document.getElementById('closeBtn').onclick = closeFrame;
-
-let gameText = null, gameFile = null;
-document.getElementById('file').addEventListener('change', async (ev) => {
-  gameFile = ev.target.files[0] || null;
-  gameText = null;
-  if (gameFile) {
-    document.getElementById('result').textContent = '読み込み準備ができました：' + gameFile.name;
-  }
-});
-document.getElementById('playBlob').onclick = () => {
-  if (!gameFile) { alert('先にファイルを選んでください'); return; }
-  openFrame('blob', gameFile, true);
 };
-document.getElementById('playSrcdoc').onclick = async () => {
-  if (!gameFile) { alert('先にファイルを選んでください'); return; }
-  if (gameText === null) gameText = await gameFile.text();
-  openFrame('srcdoc', gameText, false);
-};
-document.getElementById('testBlob').onclick = () => openFrame('blob', TEST_HTML, false);
-document.getElementById('testSrcdoc').onclick = () => openFrame('srcdoc', TEST_HTML, false);
 </script>
 </body>
 </html>
